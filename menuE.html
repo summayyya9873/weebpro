@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLT Smart Menu</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@200;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        :root{
+            --accent:#ff6a00;--accent-light:#ff9d4d;--accent-glow:rgba(255,106,0,0.35);
+            --bg:#060606;--card:rgba(18,18,18,0.85);--card-hover:rgba(28,28,28,0.95);
+            --border:rgba(255,255,255,0.06);--text:#f0f0f0;--muted:#777;
+            --glass:rgba(255,255,255,0.03);
+        }
+        html{scroll-behavior:smooth}
+        body{
+            font-family:'Poppins',sans-serif;
+            background:var(--bg);color:var(--text);
+            min-height:100vh;overflow-x:hidden;
+            -webkit-font-smoothing:antialiased;
+        }
+        
+        /* ===== AMBIENT LIGHTING ===== */
+        .ambient{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+        .orb{position:absolute;border-radius:50%;filter:blur(100px);opacity:.4;will-change:transform}
+        .orb-1{width:500px;height:500px;background:radial-gradient(circle,rgba(255,106,0,0.3),transparent 70%);top:-10%;left:-5%;animation:orbFloat1 18s ease-in-out infinite}
+        .orb-2{width:400px;height:400px;background:radial-gradient(circle,rgba(255,60,0,0.2),transparent 70%);bottom:10%;right:-5%;animation:orbFloat2 22s ease-in-out infinite}
+        .orb-3{width:300px;height:300px;background:radial-gradient(circle,rgba(255,160,60,0.15),transparent 70%);top:40%;left:50%;animation:orbFloat3 15s ease-in-out infinite}
+        @keyframes orbFloat1{0%,100%{transform:translate(0,0)}50%{transform:translate(80px,60px)}}
+        @keyframes orbFloat2{0%,100%{transform:translate(0,0)}50%{transform:translate(-60px,-80px)}}
+        @keyframes orbFloat3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-40px,50px) scale(1.2)}}
+        .noise{position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.035;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");background-size:128px 128px}
+
+        /* ===== HEADER - STICKY ===== */
+        .top-bar{position:sticky;top:0;background:var(--bg);z-index:30;padding-bottom:8px}
+        header{text-align:center;padding:35px 0 8px;position:relative}
+        .logo{font-size:50px;font-weight:800;letter-spacing:6px;color:var(--accent);text-shadow:0 0 20px var(--accent-glow),0 0 60px rgba(255,106,0,0.15);display:inline-block;position:relative}
+        .logo::after{content:'';position:absolute;bottom:-6px;left:10%;right:10%;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent)}
+        .tagline{font-size:13px;font-weight:200;color:var(--muted);letter-spacing:4px;text-transform:uppercase;margin-top:8px}
+        
+        /* ===== CART BUTTON IN HEADER ===== */
+        .header-cart-btn{
+            position:absolute;
+            top:50%;
+            right:20px;
+            transform:translateY(-50%);
+            background:linear-gradient(135deg,var(--accent),#e05500);
+            border:none;
+            color:#fff;
+            width:48px;
+            height:48px;
+            border-radius:50%;
+            cursor:pointer;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:20px;
+            box-shadow:0 4px 20px rgba(255,106,0,0.3);
+            transition:all .3s;
+            z-index:10
+        }
+        .header-cart-btn:hover{
+            transform:translateY(-50%) scale(1.1);
+            box-shadow:0 6px 30px rgba(255,106,0,0.45)
+        }
+        .header-cart-btn .badge{
+            position:absolute;
+            top:-4px;
+            right:-4px;
+            background:#ff3333;
+            color:#fff;
+            width:20px;
+            height:20px;
+            border-radius:50%;
+            font-size:11px;
+            font-weight:700;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            border:2px solid var(--bg)
+        }
+
+        /* ===== CATEGORY NAV - STICKY UNDER HEADER ===== */
+        .cat-nav{display:flex;justify-content:center;gap:8px;margin:20px 0 10px;flex-wrap:wrap;padding:0 16px}
+        .cat-btn{display:flex;align-items:center;gap:8px;background:var(--glass);border:1px solid var(--border);color:var(--muted);padding:10px 20px;border-radius:50px;font-family:inherit;font-size:13px;font-weight:400;cursor:pointer;transition:all .35s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
+        .cat-btn i{font-size:16px;transition:color .35s}
+        .cat-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,106,0,0.15),rgba(255,60,0,0.08));opacity:0;transition:opacity .35s}
+        .cat-btn:hover{border-color:rgba(255,106,0,0.2);color:var(--text)}
+        .cat-btn:hover::before{opacity:1}
+        .cat-btn.active{color:#fff;border-color:var(--accent);box-shadow:0 0 25px rgba(255,106,0,0.15),inset 0 0 25px rgba(255,106,0,0.05)}
+        .cat-btn.active::before{opacity:1}
+        .cat-btn.active i{color:var(--accent)}
+
+        /* ===== SECTIONS ===== */
+        .section{max-width:1100px;margin:0 auto;padding:20px 20px 40px}
+        .section-title{font-size:22px;font-weight:800;color:var(--accent);margin-bottom:20px;padding-left:4px;text-shadow:0 0 20px rgba(255,106,0,0.2)}
+
+        /* ===== GRID ===== */
+        .menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px}
+
+        /* ===== CARD ===== */
+        .card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;backdrop-filter:blur(10px);transition:all .4s cubic-bezier(.4,0,.2,1)}
+        .card:hover{background:var(--card-hover);border-color:rgba(255,106,0,0.15);transform:translateY(-6px) scale(1.01);box-shadow:0 20px 60px rgba(0,0,0,0.4),0 0 40px rgba(255,106,0,0.06)}
+        .card-img{position:relative;height:160px;overflow:hidden}
+        .card-img img{width:100%;height:100%;object-fit:cover;transition:transform .6s cubic-bezier(.4,0,.2,1)}
+        .card:hover .card-img img{transform:scale(1.08)}
+        .card-img::after{content:'';position:absolute;bottom:0;left:0;right:0;height:60%;background:linear-gradient(to top,var(--card),transparent);pointer-events:none}
+        .card-img .price-badge{position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);border:1px solid rgba(255,106,0,0.3);padding:4px 12px;border-radius:20px;font-size:14px;font-weight:600;color:var(--accent-light);z-index:1}
+        .card-body{padding:16px 18px 18px}
+        .card-body h4{font-size:15px;font-weight:600;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .card-body p{font-size:11px;color:var(--muted);margin-bottom:14px;font-weight:300}
+
+        /* ===== WEIGHT OPTIONS FOR BEEF BURGERS ===== */
+        .weight-options{margin-bottom:14px}
+        .weight-options label{font-size:11px;color:var(--muted);display:block;margin-bottom:6px}
+        .weight-select{width:100%;padding:8px 12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;color:#fff;font-family:inherit;font-size:13px;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23777' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;background-size:20px}
+        .weight-select:focus{outline:none;border-color:var(--accent)}
+        .weight-select option{background:#111}
+
+        /* ===== ADD BUTTON ===== */
+        .add-btn{width:100%;padding:10px;background:linear-gradient(135deg,var(--accent),#e05500);border:none;border-radius:10px;color:#fff;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .3s;display:flex;align-items:center;justify-content:center;gap:6px;position:relative;overflow:hidden}
+        .add-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,0.15),transparent);opacity:0;transition:opacity .3s}
+        .add-btn:hover::before{opacity:1}
+        .add-btn:hover{box-shadow:0 4px 20px rgba(255,106,0,0.35)}
+        .add-btn:active{transform:scale(0.96)}
+        .add-btn.added{background:linear-gradient(135deg,#1a3a1a,#0f2f0f);pointer-events:none}
+
+        /* ===== CART TOGGLE (MOBILE) ===== */
+        .cart-toggle{display:none;position:fixed;bottom:24px;right:24px;z-index:100;width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#e05500);border:none;color:#fff;font-size:22px;cursor:pointer;box-shadow:0 8px 30px rgba(255,106,0,0.4);transition:transform .3s;align-items:center;justify-content:center}
+        .cart-toggle:hover{transform:scale(1.1)}
+        .cart-toggle .badge{position:absolute;top:-4px;right:-4px;background:#ff3333;color:#fff;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg)}
+
+        /* ===== CART PANEL - HIDDEN BY DEFAULT ===== */
+        .cart-panel{position:fixed;right:20px;top:100px;width:300px;max-height:calc(100vh - 140px);background:rgba(12,12,12,0.92);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:20px;z-index:50;display:flex;flex-direction:column;overflow:hidden;transition:transform .4s cubic-bezier(.4,0,.2,1),opacity .4s;opacity:0;transform:translateX(340px);pointer-events:none}
+        .cart-panel.show{opacity:1;transform:translateX(0);pointer-events:auto}
+        .cart-header{padding:20px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+        .cart-header h3{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px}
+        .cart-header h3 i{color:var(--accent);font-size:18px}
+        .cart-close{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;transition:color .3s;display:none}
+        .cart-close:hover{color:#fff}
+
+        /* ===== TABLE SELECTOR ===== */
+        .table-row{padding:12px 22px;border-bottom:1px solid var(--border)}
+        .table-row label{font-size:11px;color:var(--muted);display:block;margin-bottom:6px}
+        .table-sel{width:100%;padding:8px 12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;color:#fff;font-family:inherit;font-size:13px;cursor:pointer}
+        .table-sel:focus{outline:none;border-color:var(--accent)}
+        .table-sel option{background:#111}
+        .cart-items{flex:1;overflow-y:auto;padding:10px 0;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.08) transparent}
+        .cart-items::-webkit-scrollbar{width:4px}
+        .cart-items::-webkit-scrollbar-track{background:transparent}
+        .cart-items::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:4px}
+
+        /* ===== CART ITEM ===== */
+        .cart-item{display:flex;align-items:center;gap:12px;padding:10px 22px;transition:background .3s;animation:cartSlideIn .3s ease-out}
+        .cart-item:hover{background:rgba(255,255,255,0.02)}
+        @keyframes cartSlideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+        .cart-item img{width:44px;height:44px;border-radius:10px;object-fit:cover;flex-shrink:0}
+        .cart-item-info{flex:1;min-width:0}
+        .cart-item-info .name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .cart-item-info .item-price{font-size:11px;color:var(--accent-light);font-weight:400}
+        .qty-ctrl{display:flex;align-items:center;gap:4px;flex-shrink:0}
+        .qty-btn{width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+        .qty-btn:hover{background:rgba(255,106,0,0.2);border-color:rgba(255,106,0,0.3)}
+        .qty-num{font-size:13px;font-weight:600;min-width:20px;text-align:center}
+
+        /* ===== CART FOOTER ===== */
+        .cart-footer{padding:18px 22px;border-top:1px solid var(--border)}
+        .cart-footer .row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+        .cart-footer .label{font-size:12px;color:var(--muted)}
+        .cart-footer .val{font-size:12px;font-weight:400}
+        .cart-footer .total-row .label{font-size:14px;color:#fff;font-weight:600}
+        .cart-footer .total-row .val{font-size:18px;font-weight:800;color:var(--accent-light)}
+        .checkout-btn{width:100%;margin-top:14px;padding:12px;background:linear-gradient(135deg,var(--accent),#e05500);border:none;border-radius:12px;color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:all .3s;display:flex;align-items:center;justify-content:center;gap:8px}
+        .checkout-btn:hover{box-shadow:0 6px 30px rgba(255,106,0,0.4);transform:translateY(-1px)}
+        .checkout-btn:active{transform:scale(0.98)}
+        .checkout-btn:disabled{opacity:.4;pointer-events:none}
+        .empty-cart{text-align:center;padding:40px 20px;color:var(--muted)}
+        .empty-cart i{font-size:36px;margin-bottom:10px;opacity:.3}
+        .empty-cart p{font-size:13px}
+
+        /* ===== TOAST ===== */
+        .toast-container{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center}
+        .toast{background:rgba(20,20,20,0.95);backdrop-filter:blur(10px);border:1px solid rgba(255,106,0,0.2);padding:10px 20px;border-radius:12px;font-size:13px;font-weight:400;color:var(--text);display:flex;align-items:center;gap:8px;animation:toastIn .35s ease-out,toastOut .35s ease-in 1.8s forwards;box-shadow:0 10px 40px rgba(0,0,0,0.5),0 0 20px rgba(255,106,0,0.08)}
+        .toast i{color:var(--accent)}
+        @keyframes toastIn{from{opacity:0;transform:translateY(-20px) scale(0.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+        @keyframes toastOut{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-20px)}}
+
+        /* ===== RESPONSIVE ===== */
+        @media(max-width:768px){
+            .logo{font-size:38px;letter-spacing:4px}
+            .menu-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
+            .card-img{height:130px}
+            .cat-nav{gap:6px;padding:0 10px}
+            .cat-btn{padding:8px 14px;font-size:12px}
+            .header-cart-btn{display:none}
+            .cart-panel{right:0;top:0;bottom:0;width:100%;max-height:100vh;border-radius:0;transform:translateX(100%)}
+            .cart-panel.show{transform:translateX(0)}
+            .cart-toggle{display:flex}
+            .cart-close{display:block}
+        }
+        @media(prefers-reduced-motion:reduce){
+            *,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}
+            .orb{display:none}
+        }
+    </style>
+</head>
+<body>
+    <!-- Ambient Lighting -->
+    <div class="ambient" aria-hidden="true">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+    <div class="noise" aria-hidden="true"></div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+    <!-- Sticky Header + Category Buttons -->
+    <div class="top-bar">
+        <header>
+            <button class="header-cart-btn" id="headerCartBtn" aria-label="View cart">
+                <i class="fa-solid fa-bag-shopping"></i>
+                <span class="badge" id="headerCartBadge" style="display:none">0</span>
+            </button>
+            <div class="logo">MLT</div>
+           
+        <nav class="cat-nav" id="catNav" role="tablist" aria-label="Menu categories">
+            <!-- buttons built by JS -->
+        </nav>
+    </div>
+
+    <!-- All Menu Sections (vertical scroll) -->
+    <div id="allSections"></div>
+
+    <!-- Mobile Cart Toggle -->
+    <button class="cart-toggle" id="cartToggle" aria-label="Open cart">
+        <i class="fa-solid fa-bag-shopping"></i>
+        <span class="badge" id="cartBadge" style="display:none">0</span>
+    </button>
+
+    <!-- Cart Panel - HIDDEN until user adds something -->
+    <aside class="cart-panel" id="cartPanel" aria-label="Shopping cart">
+        <div class="cart-header">
+            <h3><i class="fa-solid fa-bag-shopping"></i> My Order</h3>
+            <button class="cart-close" id="cartClose" aria-label="Close cart"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="table-row">
+            <label>Table Number</label>
+            <select class="table-sel" id="tableSelect">
+                <option value="">Select table...</option>
+            </select>
+        </div>
+        <div class="cart-items" id="cartItems">
+            <div class="empty-cart" id="emptyCart">
+                <i class="fa-solid fa-basket-shopping"></i>
+                <p>Your bag is empty</p>
+            </div>
+        </div>
+        <div class="cart-footer" id="cartFooter" style="display:none">
+            <div class="row"><span class="label">Subtotal</span><span class="val" id="subtotal">IQD 0</span></div>
+            <div class="row"><span class="label">Items</span><span class="val" id="itemCount">0</span></div>
+            <div class="row total-row"><span class="label">Total</span><span class="val" id="totalPrice">IQD 0</span></div>
+            <button class="checkout-btn" id="checkoutBtn" disabled>
+                <i class="fa-solid fa-paper-plane"></i> Place Order
+            </button>
+        </div>
+    </aside>
+
+    <script>
+    // ============================================================
+    // YOUR MENU ITEMS - EDIT HERE EASILY
+    // To add a new item: copy one line, paste, change values
+    // To change a price: just change the number
+    // ============================================================
+    var menuData = {
+        "Beef Burgers": [
+            {
+                name: "MLT Burger",
+                hasWeightOptions: true,
+                weightPrices: {
+                    "100g": 6000,
+                    "150g": 7500,
+                    "225g": 9500,
+                    "300g": 11500
+                },
+                desc: "CARMALIZED ONIONS,BACON & CHESS",
+
+                img: "image/IMG_2797.PNG" 
+            },
+            {
+                name: " SMOKEY",
+                hasWeightOptions: true,
+                weightPrices: {
+                    "100g": 6000,
+                    "150g": 7500,
+                    "225g": 9250,
+                    "300g": 11000
+                },
+                desc: "SMOKED CHEESESMOKED BBQ, BACON &MLT SAUCE",
+                img: "image/smoky.PNG"
+            },
+            {
+                name: "CHILICHEAT US",
+                hasWeightOptions: true,
+                weightPrices: {
+                    "100g": 6000,
+                    "150g": 7500,
+                    "225g": 9250,
+                    "300g": 11000
+                },
+                desc: "CHEESE, LETTUCE, TOMATOPEPPERS, CRUSHED CHIPS& SPICY MLT SAUCE",
+                img: "image/chily.PNG"
+            },
+            {
+                name: "CLASSIC",
+                hasWeightOptions: true,
+                weightPrices: {
+                    "100g": 5500,
+                    "150g": 7000,
+                    "225g": 8750,
+                    "300g": 10500
+                },
+                desc: "CHEESE, LETTUCE, TOMATOPICKLES, ONIONS & MLT SAUCE",
+                img: "image/clasic.PNG"
+            }
+        ],
+        "Chicken Burgers": [
+            { name: "CRUNCHY CHICKEN", price: 6500, desc: "TOMATO, LETTUCE, CHEESE& RANCH SAUCE", img: "image/crangy chikn.PNG" },
+            { name: "DIPPED CHICKEN", price: 6750, desc: "CRUNCHY CHICKEN DIPPEDIN YOUR CHOICE OF SAUCE(BUFFALO, BBQ, JAMAICANDYNAMITE,HONEY MUSTARD)", img: "image/dipped chiken.PNG" },
+            { name: "GRILLED CHICKEN", price: 6250, desc: "TOMATO, LETTUCE,CHEESE AND RANCH SAUCE", img: "image/chiken.PNG" },
+            { name: "CHICKEN WRAP", price: 6250, desc: "LETTUCE, CHEESE, TURKEY SLICESCRUNCHY CHICKEN, MAYONNAISE", img: "image/shawrma.PNG" }
+            
+        ],
+        "Wings": [
+    {
+        name: "STRIPS",
+        hasWeightOptions: true,
+        weightPrices: {
+            "3 pcs": 4750,
+            "5 pcs": 7000
+        },
+        desc: "FLAVORS BUFFALO, BBQJAMAICAN,DYNAMITEHONEY MUSTARD, PLAIN",
+        img: "image/strips.JPG"
+    },
+    {
+        name: "TRADITIONAL",
+        hasWeightOptions: true,
+        weightPrices: {
+            "6 pcs": 5000,
+            "12 pcs": 8500,
+            "24 pcs": 17000
+        },
+        desc: "FLAVORS BUFFALO, BBQJAMAICAN,DYNAMITEHONEY MUSTARD, PLAIN",
+        img: "image/tradition.JPG"
+    }
+],
+        "Meals": [
+            { name: "SIGNATURE MEAL", price: 4750, desc: "ADD ANY100 BEEFOR CHICKEN SANDWICH", img: "image/meal.JPG" },
+            { name: "VALUE MEAL", price: 3000, desc: "ADD 2 STRIPS AND 2 ONION RINGS TO YOUR MEAL", img: "image/IMG_1738.JPG" } 
+        ],
+        "Sides & Appetizers": [
+            { name: "SALAD", price: 6000, desc: "CHICKEN CAESAR SALADLETTUCE, TOASTED BREAD, MLT CAESAR SAUCE, GRILLED CHICKEN", img: "image/IMG_1739.JPG" },
+            { name: "MOZZARELLA STICKS", price: 4500, desc: "4 PCS", img: "image/IMG_1746.PNG" },
+            { name: "ONION RINGS", price: 2250, desc: " 6 PCS", img: "image/IMG_1741.JPG" },
+            { name: "CHEAT US FRIES BOX", price: 5000, img: "image/IMG_1740.JPG" },
+            { name: "FRETCHY MIX BOX", price: 7000,  img: "image/IMG_1747.PNG" },
+            { name: "FRENCH FRIES CUP", price: 1750, desc: "FRENCH FRIES BOX", img: "image/IMG_1742.JPG" },
+            { name: "WEDGES FRIES CUP", price: 2500, desc: "WEDGES FRIES BOX", img: "image/IMG_1743.JPG" }
+        ],
+        "Extra Dips": [
+            { name: "Honey Mustard Dip", price: 500, desc: "Sweet & tangy honey mustard", img: "image/IMG_1760.PNG" },
+            { name: "Jamaican Dip", price: 500, desc: "Spicy & zesty Caribbean-style sauce", img: "image/IMG_1744.JPG" },
+            { name: "Barbeque Dip", price: 500, desc: "Fiery buffalo heat dip", img: "image/IMG_1761.PNG" },
+            { name: "MLT Dip", price: 500, desc: "The original MLT secret sauce", img: "image/IMG_1762.PNG" }
+        ],
+        "Drinks": [
+            { name: "Coca-Cola", price: 1000, img: "image/IMG_1756.PNG" },
+            { name: "Pepsi", price: 1000, img: "image/IMG_1758.PNG" },
+            { name: "Sprite", price: 1000,  img: "image/IMG_1753.WEBP" },
+            { name: "Fanta Orange", price: 1000, img: "image/IMG_1757.PNG" },
+           
+        ]
+    };
+
+    // icons for each category button
+    var catIcons = {
+        "Beef Burgers": "fa-burger",
+        "Chicken Burgers": "fa-drumstick-bite",
+        "Wings": "fa-drumstick-bite",
+        "Meals": "fa-utensils",
+        "Sides & Appetizers": "fa-french-fries",
+        "Extra Dips": "fa-pepper-hot",
+        "Drinks": "fa-glass-water"
+    };
+
+    // ============================================================
+    // VARIABLES
+    // ============================================================
+    var cart = [];
+    var sectionNames = []; // list of category names
+    var sectionIds = [];   // list of section element ids
+
+    // ============================================================
+    // BUILD CATEGORY BUTTONS
+    // ============================================================
+    function buildButtons() {
+        var nav = document.getElementById("catNav");
+        var html = "";
+        for (var key in menuData) {
+            sectionNames.push(key);
+            var icon = catIcons[key] || "fa-circle";
+            html += '<button class="cat-btn' + (sectionNames.length === 1 ? ' active' : '') + '" data-cat="' + key + '">';
+            html += '<i class="fa-solid ' + icon + '"></i><span>' + key + '</span>';
+            html += '</button>';
+        }
+        nav.innerHTML = html;
+
+        // add click to each button
+        var buttons = nav.querySelectorAll(".cat-btn");
+        for (var i = 0; i < buttons.length; i++) {
+            buttons[i].addEventListener("click", function() {
+                scrollToCategory(this.getAttribute("data-cat"));
+            });
+        }
+    }
+
+    // ============================================================
+    // BUILD ALL MENU SECTIONS (vertical scroll)
+    // ============================================================
+    function buildMenu() {
+        var box = document.getElementById("allSections");
+        var html = "";
+        var num = 0;
+
+        for (var key in menuData) {
+            var secId = "section-" + num;
+            sectionIds.push(secId);
+
+            html += '<div class="section" id="' + secId + '">';
+            html += '<h2 class="section-title">' + key + '</h2>';
+            html += '<div class="menu-grid">';
+
+            var items = menuData[key];
+            for (var i = 0; i < items.length; i++) {
+                var it = items[i];
+                html += '<div class="card">';
+                html += ' <div class="card-img">';
+                html += '  <img src="' + it.img + '" alt="' + it.name + '" loading="lazy">';
+                
+                // Show price badge - for weight options show starting price
+                if (it.hasWeightOptions) {
+                    var minPrice = Math.min.apply(null, Object.values(it.weightPrices));
+                    html += '  <span class="price-badge">From IQD ' + minPrice.toLocaleString() + '</span>';
+                } else {
+                    html += '  <span class="price-badge">IQD ' + it.price.toLocaleString() + '</span>';
+                }
+                
+                html += ' </div>';
+                html += ' <div class="card-body">';
+                html += '  <h4>' + it.name + '</h4>';
+                html += '  <p>' + it.desc + '</p>';
+
+                // Add weight selector for beef burgers
+                if (it.hasWeightOptions) {
+                    html += '  <div class="weight-options">';
+                    html += '   <label>Select Weight:</label>';
+                    html += '   <select class="weight-select" id="weight-' + num + '-' + i + '">';
+                    var weights = Object.keys(it.weightPrices);
+                    for (var w = 0; w < weights.length; w++) {
+                        html += '    <option value="' + weights[w] + '">' + weights[w] + ' - IQD ' + it.weightPrices[weights[w]].toLocaleString() + '</option>';
+                    }
+                    html += '   </select>';
+                    html += '  </div>';
+                }
+
+                html += '  <button class="add-btn" data-key="' + key + '" data-idx="' + i + '">';
+                html += '   <i class="fa-solid fa-plus"></i> Add to Order';
+                html += '  </button>';
+                html += ' </div>';
+                html += '</div>';
+            }
+
+            html += '</div></div>';
+            num++;
+        }
+
+        box.innerHTML = html;
+
+        // add click to all add buttons
+        var addButtons = box.querySelectorAll(".add-btn");
+        for (var i = 0; i < addButtons.length; i++) {
+            addButtons[i].addEventListener("click", function() {
+                var catKey = this.getAttribute("data-key");
+                var idx = parseInt(this.getAttribute("data-idx"));
+                addToCart(catKey, idx, this);
+            });
+        }
+
+        // Update price display when weight is changed
+        var weightSelects = box.querySelectorAll(".weight-select");
+        for (var i = 0; i < weightSelects.length; i++) {
+            weightSelects[i].addEventListener("change", function() {
+                // Optional: You can add visual feedback here if needed
+            });
+        }
+    }
+
+    // ============================================================
+    // BUILD TABLE SELECT (1 to 20)
+    // ============================================================
+    function buildTables() {
+        var sel = document.getElementById("tableSelect");
+        var html = '<option value="">Select table...</option>';
+        for (var i = 1; i <= 20; i++) {
+            html += '<option value="' + i + '">Table ' + i + '</option>';
+        }
+        sel.innerHTML = html;
+    }
+
+    // ============================================================
+    // CLICK CATEGORY BUTTON = SCROLL TO THAT SECTION
+    // ============================================================
+    function scrollToCategory(catName) {
+        // find which number this category is
+        for (var i = 0; i < sectionNames.length; i++) {
+            if (sectionNames[i] === catName) {
+                var sec = document.getElementById(sectionIds[i]);
+                sec.scrollIntoView({ behavior: "smooth" });
+                break;
+            }
+        }
+    }
+
+    // ============================================================
+    // SCROLL = UPDATE ACTIVE BUTTON
+    // this runs every time user scrolls down/up
+    // ============================================================
+    window.addEventListener("scroll", function() {
+        var buttons = document.querySelectorAll(".cat-btn");
+        var foundIndex = 0;
+
+        // check each section, find which one is at the top
+        for (var i = 0; i < sectionIds.length; i++) {
+            var sec = document.getElementById(sectionIds[i]);
+            var top = sec.getBoundingClientRect().top;
+
+            // if this section is near the top of the screen
+            if (top < 200) {
+                foundIndex = i;
+            }
+        }
+
+        // remove active from all buttons, then add to the found one
+        for (var i = 0; i < buttons.length; i++) {
+            buttons[i].classList.remove("active");
+        }
+        buttons[foundIndex].classList.add("active");
+    });
+
+    // ============================================================
+    // SHOW / HIDE CART
+    // ============================================================
+    function showCart() {
+        document.getElementById("cartPanel").classList.add("show");
+    }
+
+    function hideCart() {
+        document.getElementById("cartPanel").classList.remove("show");
+    }
+
+    // ============================================================
+    // ADD ITEM TO CART
+    // ============================================================
+    function addToCart(catKey, idx, btn) {
+        var item = menuData[catKey][idx];
+        var finalPrice = item.price;
+        var itemName = item.name;
+        var selectedWeight = "";
+
+        // Handle weight options for beef burgers
+        if (item.hasWeightOptions) {
+            var weightSelectId = "";
+            // Find the section index
+            for (var s = 0; s < sectionNames.length; s++) {
+                if (sectionNames[s] === catKey) {
+                    weightSelectId = "weight-" + s + "-" + idx;
+                    break;
+                }
+            }
+            
+            var weightSelect = document.getElementById(weightSelectId);
+            if (weightSelect) {
+                selectedWeight = weightSelect.value;
+                finalPrice = item.weightPrices[selectedWeight];
+                itemName = item.name + " (" + selectedWeight + ")";
+            }
+        }
+
+        var found = false;
+
+        // check if already in cart (with same weight if applicable)
+        for (var i = 0; i < cart.length; i++) {
+            if (cart[i].name === itemName) {
+                cart[i].qty++;
+                found = true;
+                break;
+            }
+        }
+
+        // if not found, add new
+        if (found === false) {
+            cart.push({
+                name: itemName,
+                price: finalPrice,
+                img: item.img,
+                qty: 1
+            });
+        }
+
+        // button feedback
+        btn.classList.add("added");
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Added';
+        var theBtn = btn;
+        setTimeout(function() {
+            theBtn.classList.remove("added");
+            theBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Add to Order';
+        }, 800);
+
+        // show toast
+        showToast(itemName + " added");
+
+        // show cart panel
+        showCart();
+
+        // update cart display
+        renderCart();
+    }
+
+    // ============================================================
+    // DRAW CART ITEMS
+    // ============================================================
+    function renderCart() {
+        var cartItemsEl = document.getElementById("cartItems");
+        var emptyCartEl = document.getElementById("emptyCart");
+        var cartFooterEl = document.getElementById("cartFooter");
+        var subtotalEl = document.getElementById("subtotal");
+        var itemCountEl = document.getElementById("itemCount");
+        var totalPriceEl = document.getElementById("totalPrice");
+        var checkoutBtnEl = document.getElementById("checkoutBtn");
+        var badgeEl = document.getElementById("cartBadge");
+        var headerBadgeEl = document.getElementById("headerCartBadge");
+
+        var totalQty = 0;
+        var totalPrice = 0;
+
+        for (var i = 0; i < cart.length; i++) {
+            totalQty = totalQty + cart[i].qty;
+            totalPrice = totalPrice + (cart[i].price * cart[i].qty);
+        }
+
+        // badge - update both header and mobile badges
+        if (totalQty > 0) {
+            badgeEl.style.display = "flex";
+            badgeEl.textContent = totalQty;
+            headerBadgeEl.style.display = "flex";
+            headerBadgeEl.textContent = totalQty;
+        } else {
+            badgeEl.style.display = "none";
+            headerBadgeEl.style.display = "none";
+        }
+
+        // if cart is empty
+        if (cart.length === 0) {
+            emptyCartEl.style.display = "block";
+            cartFooterEl.style.display = "none";
+
+            // remove old items
+            var oldItems = cartItemsEl.querySelectorAll(".cart-item");
+            for (var i = 0; i < oldItems.length; i++) oldItems[i].remove();
+            return;
+        }
+
+        // cart has items
+        emptyCartEl.style.display = "none";
+        cartFooterEl.style.display = "block";
+
+        // build cart items html
+        var html = "";
+        for (var i = 0; i < cart.length; i++) {
+            var c = cart[i];
+            var linePrice = (c.price * c.qty).toLocaleString();
+            html += '<div class="cart-item">';
+            html += ' <img src="' + c.img + '" alt="' + c.name + '">';
+            html += ' <div class="cart-item-info">';
+            html += '  <div class="name">' + c.name + '</div>';
+            html += '  <div class="item-price">IQD ' + linePrice + '</div>';
+            html += ' </div>';
+            html += ' <div class="qty-ctrl">';
+            html += '  <button class="qty-btn" data-action="dec" data-idx="' + i + '"><i class="fa-solid fa-minus" style="font-size:10px"></i></button>';
+            html += '  <span class="qty-num">' + c.qty + '</span>';
+            html += '  <button class="qty-btn" data-action="inc" data-idx="' + i + '"><i class="fa-solid fa-plus" style="font-size:10px"></i></button>';
+            html += ' </div>';
+            html += '</div>';
+        }
+
+        // remove old items, put new ones
+        var oldItems = cartItemsEl.querySelectorAll(".cart-item");
+        for (var i = 0; i < oldItems.length; i++) oldItems[i].remove();
+        cartItemsEl.insertAdjacentHTML("beforeend", html);
+
+        // update totals
+        subtotalEl.textContent = "IQD " + totalPrice.toLocaleString();
+        itemCountEl.textContent = totalQty;
+        totalPriceEl.textContent = "IQD " + totalPrice.toLocaleString();
+        checkoutBtnEl.disabled = false;
+
+        // add click to qty buttons
+        var qtyButtons = cartItemsEl.querySelectorAll(".qty-btn");
+        for (var i = 0; i < qtyButtons.length; i++) {
+            qtyButtons[i].addEventListener("click", function() {
+                var action = this.getAttribute("data-action");
+                var idx = parseInt(this.getAttribute("data-idx"));
+                changeQty(idx, action);
+            });
+        }
+    }
+
+    // ============================================================
+    // CHANGE QUANTITY (+/-)
+    // ============================================================
+    function changeQty(idx, action) {
+        if (action === "inc") {
+            cart[idx].qty++;
+        }
+        if (action === "dec") {
+            cart[idx].qty--;
+            if (cart[idx].qty <= 0) {
+                var removed = cart.splice(idx, 1)[0];
+                showToast(removed.name + " removed");
+
+                // if cart empty, hide it
+                if (cart.length === 0) {
+                    hideCart();
+                }
+            }
+        }
+        renderCart();
+    }
+
+    // ============================================================
+    // PLACE ORDER
+    // ============================================================
+    function placeOrder() {
+        if (cart.length === 0) return;
+
+        // check table
+        var tableVal = document.getElementById("tableSelect").value;
+        if (tableVal === "") {
+            showToast("Please select a table number");
+            return;
+        }
+
+        // calculate total
+        var total = 0;
+        for (var i = 0; i < cart.length; i++) {
+            total = total + (cart[i].price * cart[i].qty);
+        }
+
+        // done!
+        showToast("Table " + tableVal + " — Order sent! IQD " + total.toLocaleString());
+
+        // clear everything
+        cart = [];
+        document.getElementById("tableSelect").value = "";
+        renderCart();
+        hideCart();
+    }
+
+    // ============================================================
+    // TOAST (little popup message)
+    // ============================================================
+    function showToast(msg) {
+        var box = document.getElementById("toastContainer");
+
+        // remove old toasts
+        var old = box.querySelectorAll(".toast");
+        for (var i = 0; i < old.length; i++) old[i].remove();
+
+        var t = document.createElement("div");
+        t.className = "toast";
+        t.innerHTML = '<i class="fa-solid fa-circle-check"></i> ' + msg;
+        box.appendChild(t);
+
+        setTimeout(function() {
+            t.remove();
+        }, 2200);
+    }
+
+    // ============================================================
+    // MOBILE CART BUTTONS
+    // ============================================================
+    document.getElementById("cartToggle").addEventListener("click", function() {
+        showCart();
+    });
+
+    document.getElementById("cartClose").addEventListener("click", function() {
+        hideCart();
+    });
+
+    document.getElementById("checkoutBtn").addEventListener("click", function() {
+        placeOrder();
+    });
+
+    // Header cart button (desktop)
+    document.getElementById("headerCartBtn").addEventListener("click", function() {
+        showCart();
+    });
+
+    // ============================================================
+    // START EVERYTHING
+    // ============================================================
+    buildButtons();
+    buildMenu();
+    buildTables();
+    </script>
+</body>
+</html>
